@@ -314,6 +314,14 @@
           <button class="btn-sm" onclick="saveAllData()">💾 保存全部修改</button>
         </div>
       </div>
+      <div class="card">
+        <h3>🕘 数据备份与恢复</h3>
+        <div class="desc" style="margin-bottom:12px">每次保存自动在本机留存最近 20 个版本，数据被误改/误清时可一键回滚</div>
+        <div class="weight-bar">
+          <div class="field"><label>选择备份版本</label><select id="backupSelect" class="num-input" style="width:260px;padding:8px"></select></div>
+          <button class="btn-sm orange" onclick="restoreBackup()">恢复此版本</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -395,9 +403,46 @@ function loadStore() {
   return fresh;
 }
 
+/* ==================== 本地自动备份 ==================== */
+const BACKUP_KEY = 'campusPoints_backups';
+
+function snapshot() {
+  try {
+    const list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+    list.unshift({ rev: DB.rev, time: nowStr(), data: JSON.parse(JSON.stringify(DB)) });
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(list.slice(0, 20)));
+  } catch (e) {}
+}
+
+function renderBackupList() {
+  const sel = document.getElementById('backupSelect');
+  if (!sel) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); } catch (e) {}
+  sel.innerHTML = list.length
+    ? list.map((b, i) => '<option value="' + i + '">版本 ' + b.rev + ' · ' + b.time + '</option>').join('')
+    : '<option value="">（本机暂无备份）</option>';
+}
+
+function restoreBackup() {
+  const sel = document.getElementById('backupSelect');
+  const i = Number(sel.value);
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); } catch (e) {}
+  const b = list[i];
+  if (!b) { toast('没有可恢复的备份'); return; }
+  if (!confirm('确定恢复到「版本 ' + b.rev + ' · ' + b.time + '」吗？\n当前数据会被覆盖（当前状态也会先自动留存一个备份）。')) return;
+  snapshot(); // 恢复前先给当前状态留个备份
+  DB = JSON.parse(JSON.stringify(b.data));
+  saveStore();
+  renderAdmin();
+  toast('已恢复到版本 ' + b.rev + '，并同步到所有设备');
+}
+
 function saveStore() {
   DB.rev = (DB.rev || 0) + 1;
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  snapshot();
   publishCloud();
 }
 
@@ -489,6 +534,7 @@ function adoptRemote(remote, notify) {
   if (myId && DB.users[myId]) currentUser = DB.users[myId];
   const migrated = applyMigrations(DB);
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  snapshot(); // 云端来的新状态也留存备份
   if (migrated) publishCloud(); // 把迁移后的数据回传云端
   if (currentUser) {
     // 审核结果提醒
@@ -820,6 +866,7 @@ function renderAdmin() {
   document.getElementById('wTweets').value = DB.weights.tweets;
   document.getElementById('wPosts').value = DB.weights.posts;
   document.getElementById('adminFormula').innerHTML = formulaHTML();
+  renderBackupList();
   const tbody = document.querySelector('#adminTable tbody');
   tbody.innerHTML = rankedStudents().map(u =>
       '<tr>'

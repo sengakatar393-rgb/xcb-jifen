@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学院宣传工作量化计分系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+  body { background: #f0f2f5; color: #333; min-height: 100vh; }
+  button { cursor: pointer; }
+
+  /* ---------- 登录页 ---------- */
+  #loginView {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  .login-card {
+    background: #fff; border-radius: 16px; padding: 44px 40px; width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  }
+  .login-card h1 { font-size: 22px; text-align: center; color: #333; margin-bottom: 6px; }
+  .login-card .sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 28px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 11px 14px; border: 1px solid #d9d9d9; border-radius: 8px;
+    font-size: 15px; outline: none; transition: border-color .2s;
+  }
+  .field input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,.15); }
+  .btn-primary {
+    width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px;
+    background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; margin-top: 6px;
+    transition: opacity .2s;
+  }
+  .btn-primary:hover { opacity: .9; }
+  .login-tip { margin-top: 16px; font-size: 12px; color: #aaa; text-align: center; line-height: 1.7; }
+  .login-err { color: #e74c3c; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px; }
+
+  /* ---------- 主布局 ---------- */
+  #appView { display: none; min-height: 100vh; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+    background: #1f2430; color: #cfd3dc; display: flex; flex-direction: column;
+  }
+  .sidebar .logo { padding: 22px 20px; font-size: 17px; font-weight: bold; color: #fff; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sidebar .user-info { padding: 14px 20px; font-size: 12px; color: #8b93a5; border-bottom: 1px solid rgba(255,255,255,.08); line-height: 1.8; }
+  .sidebar .user-info b { color: #fff; font-size: 14px; }
+  .menu { flex: 1; padding: 12px 0; }
+  .menu-item {
+    padding: 13px 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    border-left: 3px solid transparent; transition: all .15s;
+  }
+  .menu-item:hover { background: rgba(255,255,255,.05); color: #fff; }
+  .menu-item.active { background: rgba(102,126,234,.18); color: #fff; border-left-color: #667eea; }
+  .logout { padding: 14px 22px; font-size: 13px; cursor: pointer; color: #8b93a5; border-top: 1px solid rgba(255,255,255,.08); }
+  .logout:hover { color: #ff7b7b; }
+  .sync-status { padding: 8px 20px; font-size: 12px; color: #8b93a5; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sync-status.on { color: #67c23a; }
+  .sync-status.off { color: #e6a23c; }
+  .badge { background: #e74c3c; color: #fff; border-radius: 10px; font-size: 11px; padding: 1px 7px; margin-left: auto; }
+  .pill { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 12px; }
+  .p-pending { background: #fdf6ec; color: #e6a23c; border: 1px solid #faecd8; }
+  .p-ok { background: #f0f9eb; color: #67c23a; border: 1px solid #e1f3d8; }
+  .p-no { background: #fef0f0; color: #f56c6c; border: 1px solid #fde2e2; }
+
+  .main { margin-left: 220px; padding: 28px 32px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page h2 { font-size: 20px; margin-bottom: 4px; }
+  .page .desc { color: #999; font-size: 13px; margin-bottom: 20px; }
+
+  .card { background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.05); margin-bottom: 22px; }
+  .card h3 { font-size: 15px; margin-bottom: 14px; color: #444; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 11px 12px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+  th { background: #fafafa; color: #666; font-weight: 600; white-space: nowrap; }
+  tr:hover td { background: #f8f9ff; }
+  td.score-cell { font-weight: bold; color: #667eea; }
+  .rank-1, .rank-2, .rank-3 { font-weight: bold; }
+  .rank-1 { color: #e6a23c; } .rank-2 { color: #909399; } .rank-3 { color: #c8794a; }
+  .me-row td { background: #eef1ff; }
+
+  .num-input { width: 70px; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 6px; text-align: center; font-size: 14px; }
+  .num-input:focus { outline: none; border-color: #667eea; }
+  .btn-sm {
+    padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px;
+    background: #667eea; color: #fff; transition: opacity .2s;
+  }
+  .btn-sm:hover { opacity: .85; }
+  .btn-sm.gray { background: #909399; }
+  .btn-sm.orange { background: #e6a23c; }
+  .btn-sm.green { background: #67c23a; }
+
+  .weight-bar { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-end; }
+  .weight-bar .field { margin-bottom: 0; }
+  .weight-bar input { width: 80px; }
+  .formula {
+    margin-top: 14px; padding: 12px 16px; background: #f6f7fb; border-radius: 8px;
+    font-size: 13px; color: #666; line-height: 1.8;
+  }
+  .formula b { color: #667eea; }
+
+  /* 个人中心 */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .stat-box { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .stat-box .num { font-size: 30px; font-weight: bold; color: #667eea; margin: 6px 0; }
+  .stat-box .lbl { font-size: 13px; color: #999; }
+  .stat-box.gold .num { color: #e6a23c; }
+
+  .pwd-form { max-width: 360px; }
+  .msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
+  .msg.ok { color: #67c23a; } .msg.err { color: #e74c3c; }
+  .warn-banner {
+    background: #fdf6ec; border: 1px solid #faecd8; color: #e6a23c;
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 18px;
+  }
+  .toast {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 10px 24px; border-radius: 8px;
+    font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99;
+  }
+  .toast.show { opacity: .95; }
+
+  /* ---------- 手机端适配 ---------- */
+  .topbar { display: none; }
+  .mask { display: none; }
+  @media (max-width: 768px) {
+    .topbar {
+      display: flex; position: fixed; top: 0; left: 0; right: 0; height: 52px;
+      background: #1f2430; color: #fff; align-items: center; padding: 0 12px; z-index: 40;
+      font-size: 15px; font-weight: bold;
+    }
+    .hamburger { background: none; border: none; color: #fff; font-size: 22px; padding: 6px 10px; margin-right: 4px; }
+    .sidebar {
+      transform: translateX(-100%); transition: transform .25s ease; z-index: 50; width: 230px;
+    }
+    .sidebar.open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.45); }
+    .mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 45; }
+    .mask.show { display: block; }
+    .main { margin-left: 0; padding: 68px 14px 28px; }
+    .login-card { width: 92%; max-width: 380px; padding: 36px 26px; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+    .table-wrap table { min-width: 600px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .stat-box { padding: 16px 8px; }
+    .stat-box .num { font-size: 24px; }
+    .page h2 { font-size: 18px; }
+    .card { padding: 16px 14px; }
+    .weight-bar { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div id="loginView">
+  <div class="login-card">
+    <h1>宣传工作量化计分系统</h1>
+    <div class="sub">请使用学号登录</div>
+    <div class="field">
+      <label>学号</label>
+      <input id="loginId" type="text" placeholder="请输入学号" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input id="loginPwd" type="password" placeholder="请输入密码" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-tip">初始密码为 123456，首次登录后请在「个人中心」修改</div>
+  </div>
+</div>
+
+<!-- ============ 主界面 ============ -->
+<div id="appView">
+  <div class="topbar">
+    <button class="hamburger" onclick="toggleMenu()">☰</button>
+    <span>宣传计分系统</span>
+  </div>
+  <div class="mask" id="mask" onclick="toggleMenu()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="logo">📊 宣传计分系统</div>
+    <div class="user-info" id="userInfo"></div>
+    <div class="sync-status" id="syncStatus">☁ 云同步连接中…</div>
+    <div class="menu">
+      <div class="menu-item active" data-page="overview" onclick="switchPage('overview')">📋 数据总览</div>
+      <div class="menu-item" data-page="profile" onclick="switchPage('profile')">👤 个人中心</div>
+      <div class="menu-item" data-page="requests" onclick="switchPage('requests')">📝 数量申请 <span class="badge" id="reqBadge" style="display:none"></span></div>
+      <div class="menu-item" data-page="admin" id="adminMenu" style="display:none" onclick="switchPage('admin')">🛠 管理后台</div>
+    </div>
+    <div class="logout" onclick="doLogout()">⏻ 退出登录</div>
+  </div>
+
+  <div class="main">
+    <!-- 数据总览 -->
+    <div class="page active" id="page-overview">
+      <h2>数据总览</h2>
+      <div class="desc">全体成员宣传工作量化数据（按综合得分排序）</div>
+      <div class="card">
+        <div class="table-wrap">
+        <table id="overviewTable">
+          <thead>
+            <tr>
+              <th>排名</th><th>姓名</th><th>学号</th>
+              <th>宣传活动参与次数</th><th>编辑推文篇数</th><th>学院公众号投稿数</th><th>综合得分</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📐 计分方式</h3>
+        <div class="formula" id="formulaText"></div>
+      </div>
+    </div>
+
+    <!-- 个人中心 -->
+    <div class="page" id="page-profile">
+      <h2>个人中心</h2>
+      <div class="desc">查看我的量化得分，修改登录密码</div>
+      <div class="warn-banner" id="defaultPwdWarn" style="display:none">⚠ 你仍在使用初始密码 123456，建议尽快在下方修改密码。</div>
+      <div class="stat-grid" id="myStats"></div>
+      <div class="card">
+        <h3>🔒 修改密码</h3>
+        <div class="pwd-form">
+          <div class="field"><label>原密码</label><input id="oldPwd" type="password" placeholder="请输入原密码"></div>
+          <div class="field"><label>新密码</label><input id="newPwd" type="password" placeholder="至少 6 位"></div>
+          <div class="field"><label>确认新密码</label><input id="newPwd2" type="password" placeholder="再次输入新密码"></div>
+          <button class="btn-primary" style="width:auto;padding:10px 32px" onclick="changePwd()">确认修改</button>
+          <div class="msg" id="pwdMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数量申请 -->
+    <div class="page" id="page-requests">
+      <h2>数量申请</h2>
+      <div class="desc">申请增加自己的工作数量，提交后由管理员审核</div>
+      <div class="card">
+        <h3>✍ 发起申请</h3>
+        <div class="weight-bar">
+          <div class="field">
+            <label>申请栏目</label>
+            <select id="reqField" class="num-input" style="width:190px;padding:8px">
+              <option value="activity">宣传活动参与次数</option>
+              <option value="tweets">编辑推文篇数</option>
+              <option value="posts">学院公众号投稿数</option>
+            </select>
+          </div>
+          <div class="field"><label>申请数量</label><input class="num-input" id="reqQty" type="number" min="1" value="1"></div>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label>申请说明（选填）</label>
+          <input id="reqNote" type="text" placeholder="例如：11月2日编辑推文《xxxx》一篇" style="width:100%;max-width:480px;padding:9px 12px;border:1px solid #d9d9d9;border-radius:8px;font-size:14px">
+        </div>
+        <button class="btn-sm green" style="padding:9px 28px" onclick="submitRequest()">提交申请</button>
+      </div>
+      <div class="card" id="pendingCard" style="display:none">
+        <h3>🔔 待审核申请（管理员处理）</h3>
+        <div class="table-wrap">
+        <table id="pendingTable">
+          <thead>
+            <tr><th>申请人</th><th>栏目</th><th>数量</th><th>说明</th><th>申请时间</th><th>操作</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3 id="myReqTitle">📄 我的申请记录</h3>
+        <div class="table-wrap">
+        <table id="reqTable">
+          <thead>
+            <tr><th>申请人</th><th>栏目</th><th>数量</th><th>说明</th><th>申请时间</th><th>状态</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 管理后台 -->
+    <div class="page" id="page-admin">
+      <h2>管理后台</h2>
+      <div class="desc">调整成员各项数据、计分权重，或重置成员密码</div>
+      <div class="card">
+        <h3>⚖ 计分权重设置</h3>
+        <div class="weight-bar">
+          <div class="field"><label>活动参与（分/次）</label><input class="num-input" id="wActivity" type="number" min="0"></div>
+          <div class="field"><label>编辑推文（分/篇）</label><input class="num-input" id="wTweets" type="number" min="0"></div>
+          <div class="field"><label>学院公众号投稿（分/篇）</label><input class="num-input" id="wPosts" type="number" min="0"></div>
+          <button class="btn-sm green" onclick="saveWeights()">保存权重</button>
+        </div>
+        <div class="formula" id="adminFormula"></div>
+      </div>
+      <div class="card">
+        <h3>✏ 成员数据管理</h3>
+        <div class="table-wrap">
+        <table id="adminTable">
+          <thead>
+            <tr>
+              <th>姓名</th><th>学号</th>
+              <th>活动参与次数</th><th>编辑推文篇数</th><th>学院公众号投稿数</th>
+              <th>综合得分</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+        <div style="margin-top:16px;text-align:right">
+          <button class="btn-sm gray" onclick="exportExcel()">📥 导出 Excel</button>
+          <button class="btn-sm" onclick="saveAllData()">💾 保存全部修改</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="paho-mqtt.min.js"></script>
+<script>window.Paho||document.write('<script src="https:\/\/cdnjs.cloudflare.com\/ajax\/libs\/paho-mqtt\/1.1.0\/paho-mqtt.min.js"><\/script>')</script>
+<script>window.Paho||document.write('<script src="https:\/\/cdn.jsdelivr.net\/npm\/paho-mqtt@1.1.0\/paho-mqtt.min.js"><\/script>')</script>
+<script>
+/* ==================== 数据层 ==================== */
+const STORE_KEY = 'campusPoints_v1';
+const ADMIN_ID = '852502622';
+
+const STUDENTS = [
+  { id: '852504219', name: '吴欣宇' },
+  { id: '852502218', name: '陈禹君' },
+  { id: '852504116', name: '李心悦' },
+  { id: '852504503', name: '吴松筠' },
+  { id: '852502529', name: '刘礼鑫' },
+  { id: '852504311', name: '张妤琳' },
+  { id: '852502325', name: '任培懿' },
+  { id: '852502114', name: '李梦九' },
+  { id: '852502601', name: '刘博林' },
+  { id: '852504205', name: '李伊晨' },
+  { id: '852502417', name: '张智博' },
+  { id: '852503104', name: '雷玉娟' },
+  { id: '852504405', name: '陈韵'   },
+  { id: '85250116',  name: '王诗涵' },
+  { id: '852502622', name: '付凯'   }
+];
+
+function seedData() {
+  const users = {};
+  STUDENTS.forEach(s => {
+    users[s.id] = { id: s.id, name: s.name, password: '123456', role: 'student', activity: 0, tweets: 0, posts: 0 };
+  });
+  users[ADMIN_ID].role = 'admin';
+  users[ADMIN_ID].password = '20061114';
+  users['852504219'].role = 'admin'; // 吴欣宇也是管理员
+  return { schema: 2, rev: 1, users, weights: { activity: 10, tweets: 15, posts: 20 } };
+}
+
+// 数据结构迁移：返回 true 表示有改动
+function applyMigrations(data) {
+  if (!data.schema || data.schema < 2) {
+    // v2：管理员密码改为 20061114，吴欣宇设为管理员
+    data.users[ADMIN_ID].password = '20061114';
+    data.users['852504219'].role = 'admin';
+    data.schema = 2;
+    return true;
+  }
+  return false;
+}
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && data.users && data.weights) {
+        // 迁移：补齐新增成员，确保管理员身份与姓名正确（不覆盖已修改的密码和数据）
+        STUDENTS.forEach(s => {
+          if (!data.users[s.id]) {
+            data.users[s.id] = { id: s.id, name: s.name, password: '123456', role: 'student', activity: 0, tweets: 0, posts: 0 };
+          }
+        });
+        data.users[ADMIN_ID].name = '付凯';
+        data.users[ADMIN_ID].role = 'admin';
+        if (!data.rev) data.rev = 1;
+        if (applyMigrations(data)) data.rev = (data.rev || 0) + 1; // 迁移后提升版本号，同步到云端
+        localStorage.setItem(STORE_KEY, JSON.stringify(data));
+        return data;
+      }
+    }
+  } catch (e) {}
+  const fresh = seedData();
+  localStorage.setItem(STORE_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+
+function saveStore() {
+  DB.rev = (DB.rev || 0) + 1;
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  publishCloud();
+}
+
+let DB = loadStore();
+let currentUser = null;
+
+/* ==================== 云端同步（MQTT 保留消息，浏览器直连） ==================== */
+const CLOUD_TOPIC = 'campus/points/fk-852/v1/db';
+const CLOUD_BROKERS = [
+  { host: 'broker.emqx.io',    port: 8084 },
+  { host: 'broker.hivemq.com', port: 8884 }
+];
+let cloudClient = null;
+let cloudOnline = false;
+let firstSyncDone = false;
+let brokerIndex = 0;
+let activePage = 'overview';
+
+function setSyncStatus(on, text) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.className = 'sync-status ' + (on ? 'on' : 'off');
+  el.textContent = text || (on ? '☁ 云同步已连接' : '☁ 云同步离线（数据暂存本机）');
+}
+
+function pahoApi() {
+  return window.Paho && (window.Paho.Client ? window.Paho : window.Paho.MQTT);
+}
+
+function cloudConnect() {
+  const PAHO = pahoApi();
+  if (!PAHO) { setSyncStatus(false); setTimeout(cloudConnect, 5000); return; }
+  const b = CLOUD_BROKERS[brokerIndex % CLOUD_BROKERS.length];
+  try {
+    const c = new PAHO.Client(b.host, b.port, '/mqtt', 'cp-' + Math.random().toString(16).slice(2));
+    cloudClient = c;
+    c.onConnectionLost = () => {
+      cloudOnline = false;
+      setSyncStatus(false);
+      setTimeout(cloudConnect, 5000);
+    };
+    c.onMessageArrived = m => {
+      if (m.destinationName !== CLOUD_TOPIC) return;
+      let remote = null;
+      try { remote = JSON.parse(m.payloadString); } catch (e) { return; }
+      if (!remote || !remote.users || !remote.weights) return; // 忽略无效消息
+      const wasFirst = !firstSyncDone;
+      firstSyncDone = true;
+      const rRev = remote.rev || 0, lRev = DB.rev || 0;
+      if (rRev > lRev) {
+        adoptRemote(remote, !wasFirst);
+      } else if (rRev < lRev) {
+        publishCloud(); // 本地数据更新（或云端已被清空），用本地数据重建云端
+      }
+    };
+    c.connect({
+      useSSL: true, timeout: 8, keepAliveInterval: 30,
+      onSuccess: () => {
+        cloudOnline = true;
+        setSyncStatus(true);
+        c.subscribe(CLOUD_TOPIC);
+        // 若云端暂无数据，2.5 秒后用本地数据初始化云端
+        setTimeout(() => { if (!firstSyncDone) publishCloud(); }, 2500);
+      },
+      onFailure: () => {
+        cloudOnline = false;
+        setSyncStatus(false);
+        brokerIndex++;
+        setTimeout(cloudConnect, 3000);
+      }
+    });
+  } catch (e) {
+    brokerIndex++;
+    setTimeout(cloudConnect, 3000);
+  }
+}
+
+function adoptRemote(remote, notify) {
+  const myId = currentUser ? currentUser.id : null;
+  // 记录自己此前处于「申请中」的申请，用于检测审核结果
+  const myPending = myId ? ensureApps().filter(a => a.uid === myId && a.status === 'pending').map(a => a.id) : [];
+  // 兜底：确保所有成员字段齐全
+  STUDENTS.forEach(s => {
+    if (!remote.users[s.id]) {
+      remote.users[s.id] = { id: s.id, name: s.name, password: '123456', role: 'student', activity: 0, tweets: 0, posts: 0 };
+    }
+  });
+  DB = remote;
+  if (myId && DB.users[myId]) currentUser = DB.users[myId];
+  const migrated = applyMigrations(DB);
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  if (migrated) publishCloud(); // 把迁移后的数据回传云端
+  if (currentUser) {
+    // 审核结果提醒
+    myPending.forEach(id => {
+      const a = ensureApps().find(x => x.id === id);
+      if (a && a.status === 'approved') setTimeout(() => toast('🎉 你的申请已通过，数量已入账'), 2600);
+      else if (a && a.status === 'rejected') setTimeout(() => toast('❌ 你的申请未通过审核'), 2600);
+    });
+    if (activePage === 'overview') renderOverview();
+    else if (activePage === 'profile') renderProfile();
+    else if (activePage === 'requests') renderRequests();
+    updateReqBadge();
+    if (notify) toast(activePage === 'admin' ? '☁ 云端有新数据（未打断当前编辑）' : '☁ 数据已同步更新');
+  }
+}
+
+function publishCloud() {
+  const PAHO = pahoApi();
+  if (cloudClient && cloudOnline && PAHO) {
+    try {
+      const msg = new PAHO.Message(JSON.stringify(DB));
+      msg.destinationName = CLOUD_TOPIC;
+      msg.retained = true;
+      cloudClient.send(msg);
+    } catch (e) {}
+  }
+}
+
+cloudConnect();
+
+function scoreOf(u) {
+  return (u.activity || 0) * DB.weights.activity
+       + (u.tweets   || 0) * DB.weights.tweets
+       + (u.posts    || 0) * DB.weights.posts;
+}
+
+function rankedStudents() {
+  return STUDENTS.map(s => DB.users[s.id])
+    .sort((a, b) => scoreOf(b) - scoreOf(a) || a.id.localeCompare(b.id));
+}
+
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ==================== 登录 / 登出 ==================== */
+function doLogin() {
+  const id = document.getElementById('loginId').value.trim();
+  const pwd = document.getElementById('loginPwd').value;
+  const err = document.getElementById('loginErr');
+  const u = DB.users[id];
+  if (!u || u.password !== pwd) {
+    err.textContent = '学号或密码错误，请重试';
+    return;
+  }
+  err.textContent = '';
+  currentUser = u;
+  enterApp();
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('loginView').style.display = 'flex';
+  document.getElementById('loginId').value = '';
+  document.getElementById('loginPwd').value = '';
+}
+
+document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginId').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+/* ==================== 界面切换 ==================== */
+function enterApp() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+  const isAdmin = currentUser.role === 'admin';
+  document.getElementById('userInfo').innerHTML =
+    '<b>' + currentUser.name + '</b><br>学号：' + currentUser.id + '<br>身份：' + (isAdmin ? '管理员' : '成员');
+  document.getElementById('adminMenu').style.display = isAdmin ? 'flex' : 'none';
+  switchPage('overview');
+  renderProfile();
+  updateReqBadge();
+  if (isAdmin) renderAdmin();
+}
+
+function toggleMenu() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('mask').classList.toggle('show');
+}
+
+function closeMenu() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('mask').classList.remove('show');
+}
+
+function switchPage(name) {
+  closeMenu();
+  activePage = name;
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.toggle('active', m.dataset.page === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
+  if (name === 'overview') renderOverview();
+  if (name === 'profile') renderProfile();
+  if (name === 'requests') renderRequests();
+  if (name === 'admin') renderAdmin();
+}
+
+/* ==================== 数据总览 ==================== */
+function formulaHTML() {
+  const w = DB.weights;
+  return '综合得分 = 宣传活动参与次数 × <b>' + w.activity + '</b> 分'
+       + ' ＋ 编辑推文篇数 × <b>' + w.tweets + '</b> 分'
+       + ' ＋ 学院公众号投稿数 × <b>' + w.posts + '</b> 分';
+}
+
+function renderOverview() {
+  const tbody = document.querySelector('#overviewTable tbody');
+  const list = rankedStudents();
+  // 并列排名处理
+  let rank = 0, lastScore = null;
+  tbody.innerHTML = list.map((u, i) => {
+    const s = scoreOf(u);
+    if (s !== lastScore) { rank = i + 1; lastScore = s; }
+    const rankCls = rank <= 3 ? 'rank-' + rank : '';
+    const meCls = currentUser && u.id === currentUser.id ? ' class="me-row"' : '';
+    return '<tr' + meCls + '>'
+      + '<td class="' + rankCls + '">' + rank + '</td>'
+      + '<td>' + u.name + '</td>'
+      + '<td>' + u.id + '</td>'
+      + '<td>' + u.activity + '</td>'
+      + '<td>' + u.tweets + '</td>'
+      + '<td>' + u.posts + '</td>'
+      + '<td class="score-cell">' + s + '</td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('formulaText').innerHTML = formulaHTML();
+}
+
+/* ==================== 个人中心 ==================== */
+function renderProfile() {
+  if (!currentUser) return;
+  const u = DB.users[currentUser.id];
+  const s = scoreOf(u);
+  const list = rankedStudents();
+  let rank = '—', lastScore = null, r = 0;
+  list.forEach((x, i) => {
+    const xs = scoreOf(x);
+    if (xs !== lastScore) { r = i + 1; lastScore = xs; }
+    if (x.id === u.id) rank = r;
+  });
+  document.getElementById('myStats').innerHTML =
+      '<div class="stat-box gold"><div class="lbl">我的综合得分</div><div class="num">' + s + '</div><div class="lbl">分</div></div>'
+    + '<div class="stat-box"><div class="lbl">当前排名</div><div class="num">' + rank + '</div><div class="lbl">共 ' + list.length + ' 人</div></div>'
+    + '<div class="stat-box"><div class="lbl">宣传活动参与</div><div class="num">' + u.activity + '</div><div class="lbl">次 × ' + DB.weights.activity + ' 分</div></div>'
+    + '<div class="stat-box"><div class="lbl">编辑推文</div><div class="num">' + u.tweets + '</div><div class="lbl">篇 × ' + DB.weights.tweets + ' 分</div></div>'
+    + '<div class="stat-box"><div class="lbl">学院公众号投稿</div><div class="num">' + u.posts + '</div><div class="lbl">篇 × ' + DB.weights.posts + ' 分</div></div>';
+  document.getElementById('defaultPwdWarn').style.display = u.password === '123456' ? 'block' : 'none';
+}
+
+function changePwd() {
+  const oldP = document.getElementById('oldPwd').value;
+  const newP = document.getElementById('newPwd').value;
+  const newP2 = document.getElementById('newPwd2').value;
+  const msg = document.getElementById('pwdMsg');
+  const u = DB.users[currentUser.id];
+  if (u.password !== oldP) { msg.className = 'msg err'; msg.textContent = '原密码不正确'; return; }
+  if (newP.length < 6) { msg.className = 'msg err'; msg.textContent = '新密码至少 6 位'; return; }
+  if (newP !== newP2) { msg.className = 'msg err'; msg.textContent = '两次输入的新密码不一致'; return; }
+  u.password = newP;
+  saveStore();
+  msg.className = 'msg ok'; msg.textContent = '密码修改成功！';
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+  document.getElementById('newPwd2').value = '';
+  renderProfile();
+}
+
+/* ==================== 数量申请 ==================== */
+const FIELD_LABELS = { activity: '宣传活动参与次数', tweets: '编辑推文篇数', posts: '学院公众号投稿数' };
+
+function ensureApps() {
+  if (!DB.applications) DB.applications = [];
+  return DB.applications;
+}
+
+function nowStr() {
+  return new Date().toLocaleString('zh-CN', { hour12: false });
+}
+
+function submitRequest() {
+  const field = document.getElementById('reqField').value;
+  const qty = Math.max(1, Math.floor(Number(document.getElementById('reqQty').value) || 1));
+  const note = document.getElementById('reqNote').value.trim();
+  ensureApps().unshift({
+    id: 'r' + Date.now() + Math.floor(Math.random() * 1000),
+    uid: currentUser.id, name: currentUser.name,
+    field, qty, note, status: 'pending', time: nowStr()
+  });
+  saveStore();
+  document.getElementById('reqNote').value = '';
+  document.getElementById('reqQty').value = 1;
+  renderRequests();
+  toast('申请已提交，等待管理员审核');
+}
+
+function handleRequest(rid, ok) {
+  const app = ensureApps().find(a => a.id === rid);
+  if (!app || app.status !== 'pending') return;
+  if (ok) {
+    DB.users[app.uid][app.field] = (DB.users[app.uid][app.field] || 0) + app.qty;
+    app.status = 'approved';
+  } else {
+    app.status = 'rejected';
+  }
+  app.handledBy = currentUser.name;
+  app.handledTime = nowStr();
+  saveStore();
+  renderRequests();
+  toast(ok ? '已同意，数量已加到「' + app.name + '」的对应栏目' : '已拒绝该申请');
+}
+
+function statusPill(s) {
+  if (s === 'pending')  return '<span class="pill p-pending">申请中</span>';
+  if (s === 'approved') return '<span class="pill p-ok">申请成功</span>';
+  return '<span class="pill p-no">申请失败</span>';
+}
+
+function renderRequests() {
+  if (!currentUser) return;
+  const apps = ensureApps();
+  const isAdmin = currentUser.role === 'admin';
+  // 待审核区（仅管理员）
+  const pending = apps.filter(a => a.status === 'pending');
+  document.getElementById('pendingCard').style.display = isAdmin && pending.length ? 'block' : 'none';
+  if (isAdmin) {
+    document.querySelector('#pendingTable tbody').innerHTML = pending.map(a =>
+        '<tr><td>' + a.name + '</td>'
+      + '<td>' + FIELD_LABELS[a.field] + '</td>'
+      + '<td>+' + a.qty + '</td>'
+      + '<td>' + (a.note || '—') + '</td>'
+      + '<td style="font-size:12px;color:#999">' + a.time + '</td>'
+      + '<td><button class="btn-sm green" onclick="handleRequest(\'' + a.id + '\',true)">同意</button> '
+      + '<button class="btn-sm orange" onclick="handleRequest(\'' + a.id + '\',false)">拒绝</button></td>'
+      + '</tr>'
+    ).join('');
+  }
+  // 申请记录（管理员看全部，成员看自己的）
+  const list = isAdmin ? apps : apps.filter(a => a.uid === currentUser.id);
+  document.getElementById('myReqTitle').textContent = isAdmin ? '📄 全部申请记录' : '📄 我的申请记录';
+  document.querySelector('#reqTable tbody').innerHTML = list.length ? list.map(a =>
+      '<tr><td>' + a.name + '</td>'
+    + '<td>' + FIELD_LABELS[a.field] + '</td>'
+    + '<td>+' + a.qty + '</td>'
+    + '<td>' + (a.note || '—') + '</td>'
+    + '<td style="font-size:12px;color:#999">' + a.time + '</td>'
+    + '<td>' + statusPill(a.status) + '</td>'
+    + '</tr>'
+  ).join('') : '<tr><td colspan="6" style="color:#bbb;padding:24px">暂无申请记录</td></tr>';
+  updateReqBadge();
+}
+
+function updateReqBadge() {
+  const b = document.getElementById('reqBadge');
+  if (!b) return;
+  const n = currentUser && currentUser.role === 'admin' ? ensureApps().filter(a => a.status === 'pending').length : 0;
+  b.style.display = n ? 'inline-block' : 'none';
+  b.textContent = n;
+}
+
+/* ==================== Excel 导出 ==================== */
+function loadScriptSeq(urls) {
+  return new Promise((resolve, reject) => {
+    const next = i => {
+      if (i >= urls.length) return reject(new Error('all failed'));
+      const s = document.createElement('script');
+      s.src = urls[i];
+      s.onload = () => resolve();
+      s.onerror = () => next(i + 1);
+      document.head.appendChild(s);
+    };
+    next(0);
+  });
+}
+
+function exportExcel() {
+  const rows = rankedStudents().map((u, i) => ({
+    '排名': i + 1, '姓名': u.name, '学号': u.id,
+    '宣传活动参与次数': u.activity, '编辑推文篇数': u.tweets,
+    '学院公众号投稿数': u.posts, '综合得分': scoreOf(u)
+  }));
+  const doCsv = () => {
+    const head = Object.keys(rows[0]);
+    const csv = '﻿' + [head.join(',')].concat(rows.map(r => head.map(k => r[k]).join(','))).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = '宣传计分统计.csv';
+    a.click();
+    toast('已导出 CSV（Excel 可直接打开）');
+  };
+  const doXlsx = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 10 }, { wch: 13 }, { wch: 17 }, { wch: 14 }, { wch: 17 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, ws, '得分统计');
+    const apps = ensureApps().map(a => ({
+      '申请人': a.name, '学号': a.uid, '栏目': FIELD_LABELS[a.field], '数量': a.qty,
+      '说明': a.note || '', '申请时间': a.time,
+      '状态': a.status === 'pending' ? '申请中' : a.status === 'approved' ? '申请成功' : '申请失败',
+      '处理人': a.handledBy || '', '处理时间': a.handledTime || ''
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(apps.length ? apps : [{ '申请人': '（暂无申请记录）' }]), '申请记录');
+    XLSX.writeFile(wb, '宣传计分统计.xlsx');
+    toast('Excel 已导出');
+  };
+  if (window.XLSX) { doXlsx(); return; }
+  toast('正在加载导出组件…');
+  loadScriptSeq([
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.mini.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js'
+  ]).then(doXlsx).catch(doCsv);
+}
+
+/* ==================== 管理后台 ==================== */
+function renderAdmin() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  document.getElementById('wActivity').value = DB.weights.activity;
+  document.getElementById('wTweets').value = DB.weights.tweets;
+  document.getElementById('wPosts').value = DB.weights.posts;
+  document.getElementById('adminFormula').innerHTML = formulaHTML();
+  const tbody = document.querySelector('#adminTable tbody');
+  tbody.innerHTML = rankedStudents().map(u =>
+      '<tr>'
+    + '<td>' + u.name + '</td>'
+    + '<td>' + u.id + '</td>'
+    + '<td><input class="num-input" type="number" min="0" id="act-' + u.id + '" value="' + u.activity + '"></td>'
+    + '<td><input class="num-input" type="number" min="0" id="twt-' + u.id + '" value="' + u.tweets + '"></td>'
+    + '<td><input class="num-input" type="number" min="0" id="pst-' + u.id + '" value="' + u.posts + '"></td>'
+    + '<td class="score-cell">' + scoreOf(u) + '</td>'
+    + '<td><button class="btn-sm orange" onclick="resetPwd(\'' + u.id + '\')">重置密码</button></td>'
+    + '</tr>'
+  ).join('');
+}
+
+function saveWeights() {
+  const a = Number(document.getElementById('wActivity').value);
+  const t = Number(document.getElementById('wTweets').value);
+  const p = Number(document.getElementById('wPosts').value);
+  if ([a, t, p].some(v => isNaN(v) || v < 0)) { toast('权重必须是不小于 0 的数字'); return; }
+  DB.weights = { activity: a, tweets: t, posts: p };
+  saveStore();
+  document.getElementById('adminFormula').innerHTML = formulaHTML();
+  renderAdmin();
+  toast('计分权重已保存');
+}
+
+function saveAllData() {
+  STUDENTS.forEach(s => {
+    const u = DB.users[s.id];
+    u.activity = Math.max(0, Math.floor(Number(document.getElementById('act-' + s.id).value) || 0));
+    u.tweets   = Math.max(0, Math.floor(Number(document.getElementById('twt-' + s.id).value) || 0));
+    u.posts    = Math.max(0, Math.floor(Number(document.getElementById('pst-' + s.id).value) || 0));
+  });
+  saveStore();
+  renderAdmin();
+  toast('全部数据已保存');
+}
+
+function resetPwd(id) {
+  const u = DB.users[id];
+  if (!confirm('确定将「' + u.name + '」的密码重置为初始密码 123456 吗？')) return;
+  u.password = '123456';
+  saveStore();
+  toast('已将 ' + u.name + ' 的密码重置为 123456');
+}
+</script>
+</body>
+</html>
